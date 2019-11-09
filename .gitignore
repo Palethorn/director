@@ -1,0 +1,6 @@
+targets/
+.idea/
+.vscode/
+local/
+*.pyc
+.venv/
