@@ -1,6 +1,7 @@
 import yaml
 import paramiko
 import os
+import sys
 import threading
 from jinja2 import Template
 from contextlib import contextmanager
@@ -17,6 +18,11 @@ def green(message):
 
 def yellow(message):
     return Fore.YELLOW + message + Fore.RESET
+
+
+def abort(message):
+    print(red(message))
+    sys.exit(1)
 
 
 class RemoteCommandException(Exception):
