@@ -20,16 +20,13 @@ def yellow(message):
     return Fore.YELLOW + message + Fore.RESET
 
 
-def abort(message):
-    print(red(message))
-    sys.exit(1)
-
-
 class RemoteCommandException(Exception):
     '''command process return code != 0'''
 
+
 class CommandException(Exception):
     '''command process return code != 0'''
+
 
 class RemoteCommandThread(threading.Thread):
     def __init__(self, method, client, command):
@@ -48,16 +45,24 @@ class Director:
     config = None
     clients = None
     pool = None
+    verbose = 0
 
-    def __init__(self, configuration_file):
+    def __init__(self, configuration_file, verbose):
         config = { 'hosts': [], 'parallel': False, 'warn_only': False }
         f = open(configuration_file, 'r')
         self.config = dict_merge(config, yaml.safe_load(f))
         f.close()
         self.clients = []
+        self.verbose = verbose
+
+
+    def abort(self, message):
+        self.log(red(message), 0)
+        sys.exit(1)
 
 
     def connect(self):
+        self.log(green('Connecting to hosts'), 0)
         ssh_config = paramiko.SSHConfig()
         user_config_file = os.path.expanduser('~/.ssh/config')
 
@@ -73,15 +78,17 @@ class Director:
             cfg = {'hostname': user_config['hostname'], 'username': user_config['user'], 'key_filename': user_config['identityfile'][0]}
             client.connect(**cfg)
             client.hostname = host
-            print(host + ': connected')
+            self.log(host + ': connected', 1)
             self.clients.append(client)
+        
+        self.log(green('Connected'), 0)
 
 
     def remote_command_as(self, command, user, wd='.', stdout_only = True):
         return self.remote_command('sudo su - ' + user + ' -c \'cd ' + wd + ' && ' + command + '\'', stdout_only)
 
 
-    def remote_command(self, command, stdout_only = True):
+    def remote_command(self, command, stdout_only = True, print_error = True):
         threads = []
         results = []
 
@@ -94,46 +101,57 @@ class Director:
                 r = self.client_remote_command(client, command)
 
                 if type(r) is RemoteCommandException:
+                    if(print_error == True):
+                        self.log(red(str(r)), 0)
+
                     raise RemoteCommandException
 
                 if(stdout_only == True):
                     results.append(r[1].read())
                 else:
                     results.append(r)
+
+                self.log(r[1].read(), 2)
         
         for t in threads:
             t.join()
 
         for t in threads:
             if type(t.result) is RemoteCommandException:
+                if(print_error == True):
+                    self.log(red(str(t.result)), 0)
+
                 raise RemoteCommandException
             
             if(stdout_only == True):    
                 results.append(t.result[1].read())
             else:
                 results.append(t.result)
+            
+            self.log(t.result[1].read(), 2)
 
         return results
     
 
     def client_remote_command(self, client, command):
-        print(client.hostname + ': Executing ' + command)
-        result = client.exec_command(command)
+        self.log(client.hostname + ': Executing ' + command, 1)
+        stdin, stdout, stderr = client.exec_command(command)
 
-        if(result[1].channel.recv_exit_status() != 0):
+        if(stdout.channel.recv_exit_status() != 0):
             if(self.config['warn_only'] == True):
-                message = result[2].read()
+                message = stderr.read()
+                
                 if message != '':
-                    print(yellow(message))
+                    self.log(yellow(message), 0)
             else:
-                result = RemoteCommandException('Remote command error: ' + result[2].read())
+                return RemoteCommandException('Remote command error: ' + stderr.read())
 
-        return result
+        return stdin, stdout, stderr
 
     
     def download(self, source, destination):
         for c in self.clients:
-            print(c.hostname + ': Downloading ' + destination + ' < ' + source)
+            self.log(c.hostname + ': Downloading ' + destination + ' < ' + source, 1)
             sftp_client = c.open_sftp()
             sftp_client.get(source, destination)
             sftp_client.close()
@@ -141,7 +159,7 @@ class Director:
     
     def upload(self, source, destination):
         for c in self.clients:
-            print(c.hostname + ': Uploading ' + source + ' > ' + destination)
+            self.log(c.hostname + ': Uploading ' + source + ' > ' + destination, 1)
             sftp_client = c.open_sftp()
             sftp_client.put(source, destination)
             sftp_client.close()
@@ -153,14 +171,14 @@ class Director:
             data = t.render(params)
             
         for c in self.clients:
-            print(c.hostname + ': Uploading ' + source + ' > ' + destination)
+            self.log(c.hostname + ': Uploading ' + source + ' > ' + destination, 1)
             sftp_client = c.open_sftp()
             sftp_client.open(destination, "w").write(data)
             sftp_client.close()
     
 
     def local_command(self, command):
-        print('Local > ' + command)
+        self.log('Local > ' + command, 1)
         popen = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
         result = popen.communicate()
 
@@ -172,7 +190,7 @@ class Director:
     
     def remote_dir_exists(self, dir):
         try:
-            self.remote_command('[[ -d ' + dir + ' ]]', stdout_only = False)
+            self.remote_command('[[ -d ' + dir + ' ]]', stdout_only = False, print_error = False)
         except RemoteCommandException as e:
             return False
 
@@ -181,7 +199,7 @@ class Director:
     
     def remote_file_exists(self, file):
         try:
-            self.remote_command('[[ -f ' + file + ' ]]', stdout_only = False)
+            self.remote_command('[[ -f ' + file + ' ]]', stdout_only = False, print_error = False)
         except RemoteCommandException as e:
             return False
         
@@ -193,6 +211,15 @@ class Director:
             self.remote_command('rm -rf ' + p)
         else:
             self.remote_command('rm ' + p)
+
+
+    def log(self, message, verbose):
+            if message == '':
+                return
+
+            if verbose <= self.verbose:
+                print(message)
+
 
     @contextmanager
     def settings(self, **kwargs):
