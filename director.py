@@ -75,7 +75,12 @@ class Director:
             client._policy = paramiko.WarningPolicy()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             user_config = ssh_config.lookup(host)
-            cfg = {'hostname': user_config['hostname'], 'username': user_config['user'], 'key_filename': user_config['identityfile'][0]}
+            port = 22
+            
+            if 'port' in user_config:
+                port = user_config['port']
+            
+            cfg = {'hostname': user_config['hostname'], 'username': user_config['user'], 'key_filename': user_config['identityfile'][0], 'port': port}
             client.connect(**cfg)
             client.hostname = host
             self.log(host + ': connected', 1)
@@ -85,7 +90,11 @@ class Director:
 
 
     def remote_command_as(self, command, user, wd='.', stdout_only = True):
-        return self.remote_command('sudo su - ' + user + ' -c \'cd ' + wd + ' && ' + command + '\'', stdout_only)
+        if self.config['use_sudo']:
+            return self.remote_command('sudo su - %s -c \'cd %s && %s\'' % (user, wd, command), stdout_only)
+        
+        return self.remote_command('cd %s && %s' % (wd, command), stdout_only)
+
 
 
     def remote_command(self, command, stdout_only = True, print_error = True):
