@@ -153,7 +153,12 @@ class Director:
                 if message != '':
                     self.log(yellow(message), 0)
             else:
-                return RemoteCommandException('Remote command error: ' + stderr.read())
+                errdata = stderr.read()
+
+                if(type(errdata) == bytes):
+                    errdata = errdata.decode('utf-8')
+
+                return RemoteCommandException('Remote command error: ' + errdata)
 
         return stdin, stdout, stderr
 
@@ -222,12 +227,15 @@ class Director:
             self.remote_command('rm ' + p)
 
 
-    def log(self, message, verbose):
-            if message == '':
-                return
+    def log(self, message, level):
+        if(type(message) == bytes):
+            message = message.decode('utf-8')
 
-            if verbose <= self.verbose:
-                print(message)
+        if message == '':
+            return
+
+        if level <= self.verbose:
+            print(message)
 
 
     @contextmanager
