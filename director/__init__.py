@@ -144,7 +144,14 @@ class Director:
 
     def client_remote_command(self, client, command):
         self.log(client.hostname + ': Executing ' + command, 1)
-        stdin, stdout, stderr = client.exec_command(command)
+
+        prepend = ''
+
+        if 'env' in self.config:
+            for var in self.config['env']:
+                prepend += 'export ' + var + '=' + self.config['env'][var] + '; '
+
+        stdin, stdout, stderr = client.exec_command(prepend + command)
 
         if(stdout.channel.recv_exit_status() != 0):
             if(self.config['warn_only'] == True):
