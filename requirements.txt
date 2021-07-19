@@ -1,0 +1,5 @@
+twine
+pyyaml
+paramiko
+jinja2
+colorama

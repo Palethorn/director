@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pal3thorn/director",
-    version="1.0.0",
+    version="1.1.0",
     author="David Cavar",
     author_email="wizzard405@gmail.com",
     description="Module for automated remote management",

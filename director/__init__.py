@@ -158,7 +158,7 @@ class Director:
                 message = stderr.read()
                 
                 if message != '':
-                    self.log(yellow(message), 0)
+                    self.log(yellow(message.decode('utf-8')), 0)
             else:
                 errdata = stderr.read()
 
@@ -212,7 +212,7 @@ class Director:
     def remote_dir_exists(self, dir):
         try:
             self.remote_command('[[ -d ' + dir + ' ]]', stdout_only = False, print_error = False)
-        except RemoteCommandException as e:
+        except RemoteCommandException:
             return False
 
         return True
@@ -221,7 +221,7 @@ class Director:
     def remote_file_exists(self, file):
         try:
             self.remote_command('[[ -f ' + file + ' ]]', stdout_only = False, print_error = False)
-        except RemoteCommandException as e:
+        except RemoteCommandException:
             return False
         
         return True
