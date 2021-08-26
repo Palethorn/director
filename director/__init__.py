@@ -48,6 +48,10 @@ class Director:
     verbose = 0
 
     def __init__(self, configuration_file, verbose):
+        if not os.path.exists(configuration_file):
+            print(red('Unable to open configuration filr: ' + configuration_file))
+            sys.exit()
+
         config = { 'hosts': [], 'parallel': False, 'warn_only': False }
         f = open(configuration_file, 'r')
         self.config = dict_merge(config, yaml.safe_load(f))
