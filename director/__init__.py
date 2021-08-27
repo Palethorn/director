@@ -80,8 +80,8 @@ class Director:
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             user_config = ssh_config.lookup(host)
             port = 22
-            user = 'root'
-            private_key = '~/.ssh/id_rsa'
+            user = os.environ['USER']
+            private_key = os.environ['HOME'] + '/.ssh/id_rsa'
             hostname = host
 
             if 'ssh_user' in self.config:
