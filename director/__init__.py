@@ -49,7 +49,7 @@ class Director:
 
     def __init__(self, configuration_file, verbose):
         if not os.path.exists(configuration_file):
-            print(red('Unable to open configuration filr: ' + configuration_file))
+            print(red('Unable to open configuration file: ' + configuration_file))
             sys.exit()
 
         config = { 'hosts': [], 'parallel': False, 'warn_only': False }
@@ -80,11 +80,32 @@ class Director:
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             user_config = ssh_config.lookup(host)
             port = 22
+            user = 'root'
+            private_key = '~/.ssh/id_rsa'
+            hostname = host
+
+            if 'ssh_user' in self.config:
+                user = self.config['ssh_user']
+
+            if 'ssh_port' in self.config:
+                port = self.config['ssh_port']
             
+            if 'ssh_private_key' in self.config:
+                private_key = self.config['ssh_private_key']
+
             if 'port' in user_config:
                 port = user_config['port']
+
+            if 'user' in user_config:
+                user = user_config['user']
+
+            if 'identityFile' in user_config:
+                private_key = user_config['identityfile'][0]
             
-            cfg = {'hostname': user_config['hostname'], 'username': user_config['user'], 'key_filename': user_config['identityfile'][0], 'port': port}
+            if 'hostname' in user_config:
+                hostname = user_config['hostname']
+
+            cfg = {'hostname': hostname, 'username': user, 'key_filename': private_key, 'port': port}
             client.connect(**cfg)
             client.hostname = host
             self.log(host + ': connected', 1)
