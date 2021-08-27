@@ -84,15 +84,6 @@ class Director:
             private_key = os.environ['HOME'] + '/.ssh/id_rsa'
             hostname = host
 
-            if 'ssh_user' in self.config:
-                user = self.config['ssh_user']
-
-            if 'ssh_port' in self.config:
-                port = self.config['ssh_port']
-            
-            if 'ssh_private_key' in self.config:
-                private_key = self.config['ssh_private_key']
-
             if 'port' in user_config:
                 port = user_config['port']
 
@@ -104,6 +95,16 @@ class Director:
             
             if 'hostname' in user_config:
                 hostname = user_config['hostname']
+
+            # Setting overrides if any
+            if 'ssh_port' in self.config:
+                port = self.config['ssh_port']
+
+            if 'ssh_user' in self.config:
+                user = self.config['ssh_user']
+            
+            if 'ssh_private_key' in self.config:
+                private_key = self.config['ssh_private_key']
 
             cfg = {'hostname': hostname, 'username': user, 'key_filename': private_key, 'port': port}
             client.connect(**cfg)
