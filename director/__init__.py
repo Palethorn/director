@@ -83,14 +83,16 @@ class Director:
             user = os.environ['USER']
             private_key = os.environ['HOME'] + '/.ssh/id_rsa'
             hostname = host
-
+            print(user_config)
+            
             if 'port' in user_config:
                 port = user_config['port']
 
             if 'user' in user_config:
                 user = user_config['user']
 
-            if 'identityFile' in user_config:
+            if 'identityfile' in user_config:
+
                 private_key = user_config['identityfile'][0]
             
             if 'hostname' in user_config:
