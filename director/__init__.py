@@ -1,12 +1,12 @@
-import yaml
-import paramiko
 import os
 import sys
+import yaml
+import paramiko
 import threading
+import subprocess
+from colorama import Fore
 from jinja2 import Template
 from contextlib import contextmanager
-from colorama import Fore
-import subprocess
 
 def red(message):
     return Fore.RED + message + Fore.RESET
@@ -48,6 +48,11 @@ class Director:
     verbose = 0
 
     def __init__(self, configuration_file, verbose):
+        self.loadenv()
+
+        if os.getenv('CONFIG_BASE_PATH'):
+            configuration_file = os.getenv('CONFIG_BASE_PATH') + '/' + configuration_file
+
         if not os.path.exists(configuration_file):
             print(red('Unable to open configuration file: ' + configuration_file))
             sys.exit()
@@ -55,9 +60,42 @@ class Director:
         config = { 'hosts': [], 'parallel': False, 'warn_only': False }
         f = open(configuration_file, 'r')
         self.config = dict_merge(config, yaml.safe_load(f))
+
+        if os.getenv('SSH_USER'):
+            self.config['ssh_user'] = os.getenv('SSH_USER')
+
+        if os.getenv('USE_SUDO'):
+            if 'yes' == os.getenv('USE_SUDO'):
+                self.config['use_sudo'] = True
+            else:
+                self.config['use_sudo'] = False
+
+        self.config['config_base_path'] = os.path.dirname(configuration_file)
+        print(self.config['config_base_path'])
+
         f.close()
         self.clients = []
         self.verbose = verbose
+
+    def loadenv(self, env_path=None):
+        cwd = os.getcwd()
+        f = None
+
+        if None != env_path:
+            self.log('Loading environment from %s' % (env_path), 2)
+            f = open(env_path, 'r')
+        else:
+            self.log('Loading environment from %s' % (cwd + '/.env'), 2)
+            f = open(cwd + '/.env', 'r')
+
+        line = f.readline()
+
+        while line != '':
+            [ key, val ] = line.strip().split('=')
+            os.environ[key] = val
+            line = f.readline()
+        
+        f.close()
 
 
     def abort(self, message):
@@ -83,7 +121,6 @@ class Director:
             user = os.environ['USER']
             private_key = os.environ['HOME'] + '/.ssh/id_rsa'
             hostname = host
-            print(user_config)
             
             if 'port' in user_config:
                 port = user_config['port']
