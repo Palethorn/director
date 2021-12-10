@@ -71,7 +71,6 @@ class Director:
                 self.config['use_sudo'] = False
 
         self.config['config_base_path'] = os.path.dirname(configuration_file)
-        print(self.config['config_base_path'])
 
         f.close()
         self.clients = []
