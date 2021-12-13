@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pal3thorn/director",
-    version="1.2.3",
+    version="2.0.0",
     author="David Cavar",
     author_email="wizzard405@gmail.com",
     description="Module for automated remote management",
@@ -19,4 +19,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
+    scripts=['bin/tasker'],
 )

@@ -45,9 +45,15 @@ class Director:
     config = None
     clients = None
     pool = None
-    verbose = 0
+    verbose = 2
+
+    DEBUG = 3
+    INFO = 2
+    WARN = 1
+    ERROR = 0
 
     def __init__(self, configuration_file, verbose):
+        self.verbose = verbose
         self.loadenv()
 
         if os.getenv('CONFIG_BASE_PATH'):
@@ -74,18 +80,20 @@ class Director:
 
         f.close()
         self.clients = []
-        self.verbose = verbose
 
     def loadenv(self, env_path=None):
         cwd = os.getcwd()
         f = None
 
-        if None != env_path:
-            self.log('Loading environment from %s' % (env_path), 2)
-            f = open(env_path, 'r')
-        else:
-            self.log('Loading environment from %s' % (cwd + '/.env'), 2)
-            f = open(cwd + '/.env', 'r')
+        if None == env_path:
+            env_path = cwd + '/.env'
+
+        if not os.path.exists(env_path):
+            self.log('Environment file %s does not exist' % env_path, self.WARN)
+            return
+        
+        self.log('Loading environment from %s' % (env_path), self.DEBUG)
+        f = open(env_path, 'r')
 
         line = f.readline()
 
@@ -98,12 +106,12 @@ class Director:
 
 
     def abort(self, message):
-        self.log(red(message), 0)
+        self.log(red(message), self.ERROR)
         sys.exit(1)
 
 
     def connect(self):
-        self.log(green('Connecting to hosts'), 0)
+        self.log('Connecting to hosts', self.INFO)
         ssh_config = paramiko.SSHConfig()
         user_config_file = os.path.expanduser('~/.ssh/config')
 
@@ -147,10 +155,10 @@ class Director:
             cfg = {'hostname': hostname, 'username': user, 'key_filename': private_key, 'port': port}
             client.connect(**cfg)
             client.hostname = host
-            self.log(host + ': connected', 1)
+            self.log(host + ': connected', self.DEBUG)
             self.clients.append(client)
         
-        self.log(green('Connected'), 0)
+        self.log('Connected', self.INFO)
 
 
     def remote_command_as(self, command, user, wd='.', stdout_only = True):
@@ -175,7 +183,7 @@ class Director:
 
                 if type(r) is RemoteCommandException:
                     if(print_error == True):
-                        self.log(red(str(r)), 0)
+                        self.log(str(r), self.ERROR)
 
                     raise RemoteCommandException
 
@@ -184,7 +192,7 @@ class Director:
                 else:
                     results.append(r)
 
-                self.log(r[1].read(), 2)
+                self.log(r[1].read(), self.INFO)
         
         for t in threads:
             t.join()
@@ -192,7 +200,7 @@ class Director:
         for t in threads:
             if type(t.result) is RemoteCommandException:
                 if(print_error == True):
-                    self.log(red(str(t.result)), 0)
+                    self.log(str(t.result), self.ERROR)
 
                 raise RemoteCommandException
             
@@ -201,13 +209,13 @@ class Director:
             else:
                 results.append(t.result)
             
-            self.log(t.result[1].read(), 2)
+            self.log(t.result[1].read(), self.INFO)
 
         return results
     
 
     def client_remote_command(self, client, command):
-        self.log(client.hostname + ': Executing ' + command, 1)
+        self.log(client.hostname + ': Executing ' + command, self.DEBUG)
 
         prepend = ''
 
@@ -222,7 +230,7 @@ class Director:
                 message = stderr.read()
                 
                 if message != '':
-                    self.log(yellow(message.decode('utf-8')), 0)
+                    self.log(message.decode('utf-8'), self.WARN)
             else:
                 errdata = stderr.read()
 
@@ -236,7 +244,7 @@ class Director:
     
     def download(self, source, destination):
         for c in self.clients:
-            self.log(c.hostname + ': Downloading ' + destination + ' < ' + source, 1)
+            self.log(c.hostname + ': Downloading ' + destination + ' < ' + source, self.DEBUG)
             sftp_client = c.open_sftp()
             sftp_client.get(source, destination)
             sftp_client.close()
@@ -244,7 +252,7 @@ class Director:
     
     def upload(self, source, destination):
         for c in self.clients:
-            self.log(c.hostname + ': Uploading ' + source + ' > ' + destination, 1)
+            self.log(c.hostname + ': Uploading ' + source + ' > ' + destination, self.DEBUG)
             sftp_client = c.open_sftp()
             sftp_client.put(source, destination)
             sftp_client.close()
@@ -256,14 +264,14 @@ class Director:
             data = t.render(params)
             
         for c in self.clients:
-            self.log(c.hostname + ': Uploading ' + source + ' > ' + destination, 1)
+            self.log(c.hostname + ': Uploading ' + source + ' > ' + destination, self.DEBUG)
             sftp_client = c.open_sftp()
             sftp_client.open(destination, "w").write(data)
             sftp_client.close()
     
 
     def local_command(self, command):
-        self.log('Local > ' + command, 1)
+        self.log('Local > ' + command, self.DEBUG)
         popen = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
         result = popen.communicate()
 
@@ -306,7 +314,14 @@ class Director:
             return
 
         if level <= self.verbose:
-            print(message)
+            if level == 0:
+                print(red(message))
+            if level == 1:
+                print(yellow(message))
+            if level == 2:
+                print(green(message))
+            if level == 3:
+                print(message)
 
 
     @contextmanager
